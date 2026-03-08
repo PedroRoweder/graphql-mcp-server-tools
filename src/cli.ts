@@ -30,6 +30,10 @@ Customization:
   --tool-prefix <prefix> Tool name prefix (default: "graphql_")
   --max-depth <n>        Max field selection depth (default: 2)
 
+Resilience:
+  --timeout <ms>         Request timeout in milliseconds (default: 30000)
+  --retries <n>          Number of retry attempts on network failure (default: 0)
+
 Logging:
   --verbose              Show full request arguments and response data in logs
 
@@ -53,6 +57,8 @@ function parseArgs(argv: string[]): CliOptions {
   let serverName: string | undefined;
   let toolPrefix: string | undefined;
   let maxSelectionDepth: number | undefined;
+  let requestTimeout: number | undefined;
+  let retries: number | undefined;
   let configPath: string | undefined;
   let transport: "stdio" | "http" = "http";
   let port = 3000;
@@ -130,6 +136,22 @@ function parseArgs(argv: string[]): CliOptions {
         }
         i++;
         break;
+      case "--timeout":
+        requestTimeout = parseInt(next, 10);
+        if (isNaN(requestTimeout)) {
+          console.error("Error: --timeout must be a number");
+          process.exit(1);
+        }
+        i++;
+        break;
+      case "--retries":
+        retries = parseInt(next, 10);
+        if (isNaN(retries)) {
+          console.error("Error: --retries must be a number");
+          process.exit(1);
+        }
+        i++;
+        break;
       case "--verbose":
         verbose = true;
         break;
@@ -163,6 +185,8 @@ function parseArgs(argv: string[]): CliOptions {
   if (toolPrefix) config.toolPrefix = toolPrefix;
   if (maxSelectionDepth !== undefined) config.maxSelectionDepth = maxSelectionDepth;
   if (verbose) config.verbose = true;
+  if (requestTimeout !== undefined) config.requestTimeout = requestTimeout;
+  if (retries !== undefined) config.retries = retries;
 
   return { config, transport, port };
 }

@@ -109,7 +109,7 @@ describe('McpGraphQLServer', () => {
 			await server.initialize()
 
 			const mockData = {product: {id: '1'}}
-			globalThis.fetch = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: mockData})})
+			globalThis.fetch = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: mockData})})
 
 			const result = (await server.handleRequest({
 				jsonrpc: '2.0',
@@ -135,6 +135,8 @@ describe('McpGraphQLServer', () => {
 			expect(config.serverVersion).toBe('1.0.0')
 			expect(config.toolPrefix).toBe('graphql_')
 			expect(config.maxSelectionDepth).toBe(2)
+			expect(config.requestTimeout).toBe(30000)
+			expect(config.retries).toBe(0)
 		})
 
 		it('respects custom config values', () => {
@@ -144,11 +146,31 @@ describe('McpGraphQLServer', () => {
 				serverName: 'my-server',
 				toolPrefix: 'gql_',
 				maxSelectionDepth: 3,
+				requestTimeout: 10000,
+				retries: 3,
 			})
 			const config = server.getConfig()
 			expect(config.serverName).toBe('my-server')
 			expect(config.toolPrefix).toBe('gql_')
 			expect(config.maxSelectionDepth).toBe(3)
+			expect(config.requestTimeout).toBe(10000)
+			expect(config.retries).toBe(3)
+		})
+	})
+
+	describe('empty tool set warning', () => {
+		it('warns to stderr when schema produces no tools', async () => {
+			const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+			const server = new McpGraphQLServer({
+				schemaString: 'type Query { _empty: String }',
+				endpoint: 'http://localhost:4000/graphql',
+				operationFilter: () => false,
+			})
+			await server.initialize()
+
+			expect(stderrSpy).toHaveBeenCalledWith(
+				expect.stringContaining('No tools were generated'),
+			)
 		})
 	})
 })

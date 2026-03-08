@@ -74,6 +74,8 @@ export interface McpGraphQLConfig {
 	customScalars?: Record<string, JsonSchema>
 	operationFilter?: (op: GraphQLOperation) => boolean
 	verbose?: boolean
+	requestTimeout?: number
+	retries?: number
 }
 
 /** Internal resolved configuration with defaults applied. */
@@ -83,6 +85,8 @@ export interface ResolvedConfig extends McpGraphQLConfig {
 	toolPrefix: string
 	maxSelectionDepth: number
 	verbose: boolean
+	requestTimeout: number
+	retries: number
 }
 
 /** Apply defaults to user config to produce a ResolvedConfig. */
@@ -94,6 +98,8 @@ export function resolveConfig(config: McpGraphQLConfig): ResolvedConfig {
 		toolPrefix: config.toolPrefix ?? 'graphql_',
 		maxSelectionDepth: config.maxSelectionDepth ?? 2,
 		verbose: config.verbose ?? false,
+		requestTimeout: config.requestTimeout ?? 30000,
+		retries: config.retries ?? 0,
 	}
 }
 

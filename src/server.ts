@@ -27,6 +27,9 @@ export class McpGraphQLServer {
 	async initialize(): Promise<void> {
 		this.parsedSchema = await loadSchema(this.config)
 		this.tools = buildTools(this.parsedSchema, this.config)
+		if (this.tools.length === 0) {
+			process.stderr.write('Warning: No tools were generated from the schema. The schema may have no queries or mutations, or all operations were filtered out.\n')
+		}
 	}
 
 	/** Get the generated tool definitions. Throws if not initialized. */

@@ -140,7 +140,7 @@ describe('HTTP transport', () => {
 
 	it('handles tools/call', async () => {
 		const mockData = {product: {id: '1', title: 'Test'}}
-		globalThis.fetch = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: mockData})})
+		globalThis.fetch = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: mockData})})
 
 		const res = await request(port, {
 			body: {
@@ -207,7 +207,7 @@ describe('HTTP transport (verbose)', () => {
 		const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
 
 		const mockData = {product: {id: '1', title: 'Verbose Test'}}
-		globalThis.fetch = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: mockData})})
+		globalThis.fetch = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: mockData})})
 
 		const res = await request(verbosePort, {
 			body: {
