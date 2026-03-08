@@ -1,0 +1,140 @@
+"""Sorting options for products."""
+enum ProductSortKey {
+  TITLE
+  CREATED_AT
+  UPDATED_AT
+  PRICE
+}
+
+"""Status of a product."""
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+"""Standard page info for Relay connections."""
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+"""A user error from a mutation."""
+type UserError {
+  field: [String!]
+  message: String!
+}
+
+"""An image resource."""
+type Image {
+  id: ID!
+  url: String!
+  altText: String
+  width: Int
+  height: Int
+}
+
+"""A product variant."""
+type Variant {
+  id: ID!
+  title: String!
+  price: String!
+  sku: String
+  inventoryQuantity: Int
+}
+
+"""A Relay connection of variants."""
+type VariantConnection {
+  nodes: [Variant!]!
+  pageInfo: PageInfo!
+}
+
+"""A product in the catalog."""
+type Product {
+  id: ID!
+  title: String!
+  handle: String!
+  description: String
+  status: ProductStatus!
+  createdAt: String!
+  updatedAt: String!
+  featuredImage: Image
+  variants: VariantConnection!
+}
+
+"""A Relay connection of products."""
+type ProductConnection {
+  nodes: [Product!]!
+  pageInfo: PageInfo!
+}
+
+"""Result of creating a product."""
+type ProductCreatePayload {
+  product: Product
+  userErrors: [UserError!]!
+}
+
+"""Result of deleting a product."""
+type ProductDeletePayload {
+  deletedProductId: ID
+  userErrors: [UserError!]!
+}
+
+"""A customer."""
+type Customer {
+  id: ID!
+  firstName: String
+  lastName: String
+  email: String!
+}
+
+"""An event in an activity feed."""
+interface Event {
+  id: ID!
+  message: String!
+  createdAt: String!
+}
+
+"""Input for creating a product."""
+input ProductInput {
+  title: String!
+  description: String
+  status: ProductStatus
+  handle: String
+}
+
+"""Input for an address."""
+input AddressInput {
+  street: String!
+  city: String!
+  zip: String
+}
+
+type Query {
+  """Returns a single product by ID."""
+  product(id: ID!): Product
+
+  """Returns a paginated list of products."""
+  products(
+    first: Int
+    after: String
+    sortKey: ProductSortKey
+    query: String
+  ): ProductConnection!
+
+  """Returns a single customer by ID."""
+  customer(id: ID!): Customer
+
+  """Returns a list of events."""
+  events(first: Int): [Event!]!
+}
+
+type Mutation {
+  """Creates a new product."""
+  productCreate(input: ProductInput!): ProductCreatePayload
+
+  """Deletes a product by ID."""
+  productDelete(id: ID!): ProductDeletePayload
+}

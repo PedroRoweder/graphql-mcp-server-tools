@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local config
+.mcp.json
+.claude/
+
+# Environment
+.env
+.env.*
