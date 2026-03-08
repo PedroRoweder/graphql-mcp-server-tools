@@ -13,6 +13,40 @@ async function resolveHeaders(
 	return {...base, ...custom}
 }
 
+async function fetchWithTimeout(
+	url: string,
+	init: RequestInit,
+	timeoutMs: number,
+): Promise<Response> {
+	const controller = new AbortController()
+	const timer = setTimeout(() => controller.abort(), timeoutMs)
+	try {
+		return await fetch(url, {...init, signal: controller.signal})
+	} finally {
+		clearTimeout(timer)
+	}
+}
+
+async function fetchWithRetry(
+	url: string,
+	init: RequestInit,
+	timeoutMs: number,
+	retries: number,
+): Promise<Response> {
+	let lastError: unknown
+	for (let attempt = 0; attempt <= retries; attempt++) {
+		try {
+			return await fetchWithTimeout(url, init, timeoutMs)
+		} catch (error) {
+			lastError = error
+			if (attempt < retries) {
+				await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+			}
+		}
+	}
+	throw lastError
+}
+
 /**
  * Execute an MCP tool call by sending the tool's GraphQL document
  * to the configured endpoint with the provided arguments as GraphQL variables.
@@ -29,17 +63,43 @@ export async function executeGraphQLTool(
 		return {content: [{type: 'text', text: `Unknown tool: ${toolName}`}], isError: true}
 	}
 
+	const timeoutMs = config.requestTimeout ?? 30000
+	const retries = config.retries ?? 0
+
 	let response: Response
 	try {
 		const headers = await resolveHeaders(config)
-		response = await fetch(config.endpoint, {
-			method: 'POST',
-			headers,
-			body: JSON.stringify({query: tool.document, variables: args}),
-		})
+		response = await fetchWithRetry(
+			config.endpoint,
+			{
+				method: 'POST',
+				headers,
+				body: JSON.stringify({query: tool.document, variables: args}),
+			},
+			timeoutMs,
+			retries,
+		)
 	} catch (error) {
+		const message = error instanceof Error
+			? error.name === 'AbortError'
+				? `Request to ${config.endpoint} timed out after ${timeoutMs}ms`
+				: error.message
+			: String(error)
 		return {
-			content: [{type: 'text', text: `Network error: ${error instanceof Error ? error.message : String(error)}`}],
+			content: [{type: 'text', text: `Network error: ${message}`}],
+			isError: true,
+		}
+	}
+
+	if (!response.ok) {
+		let bodyText: string
+		try {
+			bodyText = await response.text()
+		} catch {
+			bodyText = ''
+		}
+		return {
+			content: [{type: 'text', text: `GraphQL endpoint returned HTTP ${response.status}: ${bodyText || response.statusText}`}],
 			isError: true,
 		}
 	}
@@ -49,7 +109,7 @@ export async function executeGraphQLTool(
 		body = await response.json()
 	} catch {
 		return {
-			content: [{type: 'text', text: `Invalid JSON response from GraphQL endpoint (status ${response.status})`}],
+			content: [{type: 'text', text: `Invalid JSON response from GraphQL endpoint (HTTP ${response.status})`}],
 			isError: true,
 		}
 	}

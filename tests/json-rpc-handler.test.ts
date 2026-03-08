@@ -85,7 +85,7 @@ describe('json-rpc-handler', () => {
 	describe('tools/call', () => {
 		it('executes a tool and returns the result', async () => {
 			const mockData = {product: {id: '1', title: 'Test'}}
-			globalThis.fetch = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: mockData})})
+			globalThis.fetch = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: mockData})})
 
 			const result = (await handleJsonRpcRequest(
 				rpc('tools/call', {name: 'graphql_product', arguments: {id: '1'}}),
@@ -126,7 +126,7 @@ describe('json-rpc-handler', () => {
 		})
 
 		it('accepts tools/call with no arguments field', async () => {
-			globalThis.fetch = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: null})})
+			globalThis.fetch = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: null})})
 			const result = (await handleJsonRpcRequest(
 				rpc('tools/call', {name: 'graphql_product'}),
 				context,

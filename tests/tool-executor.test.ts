@@ -38,7 +38,7 @@ describe('tool-executor', () => {
 	describe('successful execution', () => {
 		it('formats GraphQL data as JSON text', async () => {
 			const mockData = {product: {id: '1', title: 'Test Product'}}
-			globalThis.fetch = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: mockData})})
+			globalThis.fetch = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: mockData})})
 
 			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, config)
 
@@ -48,7 +48,7 @@ describe('tool-executor', () => {
 		})
 
 		it('sends correct request to configured endpoint', async () => {
-			const fetchMock = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: {}})})
+			const fetchMock = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: {}})})
 			globalThis.fetch = fetchMock
 
 			await executeGraphQLTool('graphql_product', {id: '1'}, tools, config)
@@ -65,7 +65,7 @@ describe('tool-executor', () => {
 		})
 
 		it('includes custom headers from config', async () => {
-			const fetchMock = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: {}})})
+			const fetchMock = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: {}})})
 			globalThis.fetch = fetchMock
 
 			const customConfig: McpGraphQLConfig = {
@@ -82,7 +82,7 @@ describe('tool-executor', () => {
 		})
 
 		it('supports async header function', async () => {
-			const fetchMock = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: {}})})
+			const fetchMock = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: {}})})
 			globalThis.fetch = fetchMock
 
 			const customConfig: McpGraphQLConfig = {
@@ -99,7 +99,7 @@ describe('tool-executor', () => {
 
 	describe('response without data', () => {
 		it('returns valid string content when response has no data field', async () => {
-			globalThis.fetch = vi.fn().mockResolvedValue({json: () => Promise.resolve({})})
+			globalThis.fetch = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({})})
 
 			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, config)
 
@@ -113,7 +113,7 @@ describe('tool-executor', () => {
 		it('returns isError for full GraphQL errors', async () => {
 			globalThis.fetch = vi
 				.fn()
-				.mockResolvedValue({json: () => Promise.resolve({errors: [{message: 'Product not found'}], data: null})})
+				.mockResolvedValue({ok: true, json: () => Promise.resolve({errors: [{message: 'Product not found'}], data: null})})
 
 			const result = await executeGraphQLTool('graphql_product', {id: 'bad-id'}, tools, config)
 
@@ -127,6 +127,7 @@ describe('tool-executor', () => {
 			globalThis.fetch = vi
 				.fn()
 				.mockResolvedValue({
+					ok: true,
 					json: () => Promise.resolve({data: {product: {id: '1'}}, errors: [{message: 'Some field failed'}]}),
 				})
 
@@ -136,6 +137,53 @@ describe('tool-executor', () => {
 			const parsed = JSON.parse(result.content[0].text)
 			expect(parsed.data).toBeDefined()
 			expect(parsed.errors).toBeDefined()
+		})
+	})
+
+	describe('HTTP error responses', () => {
+		it('returns isError for non-200 HTTP status', async () => {
+			globalThis.fetch = vi.fn().mockResolvedValue({
+				ok: false,
+				status: 500,
+				statusText: 'Internal Server Error',
+				text: () => Promise.resolve('Something went wrong'),
+			})
+
+			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, config)
+
+			expect(result.isError).toBe(true)
+			expect(result.content[0].text).toContain('HTTP 500')
+			expect(result.content[0].text).toContain('Something went wrong')
+		})
+
+		it('returns statusText when body is empty for non-200', async () => {
+			globalThis.fetch = vi.fn().mockResolvedValue({
+				ok: false,
+				status: 403,
+				statusText: 'Forbidden',
+				text: () => Promise.resolve(''),
+			})
+
+			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, config)
+
+			expect(result.isError).toBe(true)
+			expect(result.content[0].text).toContain('HTTP 403')
+			expect(result.content[0].text).toContain('Forbidden')
+		})
+
+		it('handles text() failure on non-200 response', async () => {
+			globalThis.fetch = vi.fn().mockResolvedValue({
+				ok: false,
+				status: 502,
+				statusText: 'Bad Gateway',
+				text: () => Promise.reject(new Error('read error')),
+			})
+
+			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, config)
+
+			expect(result.isError).toBe(true)
+			expect(result.content[0].text).toContain('HTTP 502')
+			expect(result.content[0].text).toContain('Bad Gateway')
 		})
 	})
 
@@ -153,13 +201,69 @@ describe('tool-executor', () => {
 		it('handles invalid JSON response', async () => {
 			globalThis.fetch = vi
 				.fn()
-				.mockResolvedValue({status: 500, json: () => Promise.reject(new Error('Invalid JSON'))})
+				.mockResolvedValue({ok: true, status: 200, json: () => Promise.reject(new Error('Invalid JSON'))})
 
 			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, config)
 
 			expect(result.isError).toBe(true)
 			expect(result.content[0].text).toContain('Invalid JSON response')
-			expect(result.content[0].text).toContain('500')
+			expect(result.content[0].text).toContain('200')
+		})
+	})
+
+	describe('timeout', () => {
+		it('returns timeout error with endpoint URL and duration', async () => {
+			const abortError = new Error('The operation was aborted')
+			abortError.name = 'AbortError'
+			globalThis.fetch = vi.fn().mockRejectedValue(abortError)
+
+			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, config)
+
+			expect(result.isError).toBe(true)
+			expect(result.content[0].text).toContain('timed out')
+			expect(result.content[0].text).toContain(ENDPOINT)
+			expect(result.content[0].text).toContain('30000ms')
+		})
+
+		it('uses custom requestTimeout from config', async () => {
+			const abortError = new Error('The operation was aborted')
+			abortError.name = 'AbortError'
+			globalThis.fetch = vi.fn().mockRejectedValue(abortError)
+
+			const customConfig = resolveConfig({schemaPath: FIXTURE_PATH, endpoint: ENDPOINT, requestTimeout: 5000})
+
+			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, customConfig)
+
+			expect(result.isError).toBe(true)
+			expect(result.content[0].text).toContain('5000ms')
+		})
+	})
+
+	describe('retry', () => {
+		it('retries on failure and succeeds on subsequent attempt', async () => {
+			const fetchMock = vi.fn()
+				.mockRejectedValueOnce(new Error('Connection reset'))
+				.mockResolvedValueOnce({ok: true, json: () => Promise.resolve({data: {product: {id: '1'}}})})
+			globalThis.fetch = fetchMock
+
+			const retryConfig = resolveConfig({schemaPath: FIXTURE_PATH, endpoint: ENDPOINT, retries: 1, requestTimeout: 1000})
+
+			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, retryConfig)
+
+			expect(result.isError).toBeUndefined()
+			expect(fetchMock).toHaveBeenCalledTimes(2)
+		})
+
+		it('returns error after exhausting all retries', async () => {
+			globalThis.fetch = vi.fn().mockRejectedValue(new Error('Connection refused'))
+
+			const retryConfig = resolveConfig({schemaPath: FIXTURE_PATH, endpoint: ENDPOINT, retries: 2, requestTimeout: 1000})
+
+			const result = await executeGraphQLTool('graphql_product', {id: '1'}, tools, retryConfig)
+
+			expect(result.isError).toBe(true)
+			expect(result.content[0].text).toContain('Connection refused')
+			expect((globalThis.fetch as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(3)
 		})
 	})
 })

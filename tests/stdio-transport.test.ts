@@ -85,7 +85,7 @@ describe('stdio transport', () => {
 
 	it('handles tools/call request', async () => {
 		const mockData = {product: {id: '1', title: 'Test'}}
-		globalThis.fetch = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: mockData})})
+		globalThis.fetch = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: mockData})})
 
 		const server = new McpGraphQLServer({
 			schemaPath: FIXTURE_PATH,
@@ -164,7 +164,7 @@ describe('stdio transport', () => {
 
 	it('logs verbose args when verbose is enabled', async () => {
 		const mockData = {product: {id: '1'}}
-		globalThis.fetch = vi.fn().mockResolvedValue({json: () => Promise.resolve({data: mockData})})
+		globalThis.fetch = vi.fn().mockResolvedValue({ok: true, json: () => Promise.resolve({data: mockData})})
 
 		const server = new McpGraphQLServer({
 			schemaPath: FIXTURE_PATH,
