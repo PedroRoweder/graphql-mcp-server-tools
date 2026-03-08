@@ -110,6 +110,10 @@ interface McpGraphQLConfig {
   verbose?: boolean; // Log full args and response data (default: false)
   customScalars?: Record<string, JsonSchema>; // Custom scalar type mappings
   operationFilter?: (op: GraphQLOperation) => boolean; // Filter which operations become tools
+
+  // Resilience
+  requestTimeout?: number; // Request timeout in ms (default: 30000)
+  retries?: number; // Number of retry attempts on network failure (default: 0)
 }
 ```
 
@@ -125,6 +129,8 @@ interface McpGraphQLConfig {
 --max-depth <n>        Max field selection depth (default: 2)
 --transport <type>     Transport type: "http" or "stdio" (default: "http")
 --port <n>             HTTP server port (default: 3000, only with --transport http)
+--timeout <ms>         Request timeout in milliseconds (default: 30000)
+--retries <n>          Number of retry attempts on network failure (default: 0)
 --verbose              Show full request arguments and response data in logs
 --config <path>        Path to a JSON config file
 --help                 Show help message
