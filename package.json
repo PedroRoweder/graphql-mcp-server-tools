@@ -32,6 +32,14 @@
     "claude"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pedroroweder/graphql-mcp-server-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pedroroweder/graphql-mcp-server-tools/issues"
+  },
+  "homepage": "https://github.com/pedroroweder/graphql-mcp-server-tools#readme",
   "dependencies": {
     "graphql": "^16.0.0"
   },
